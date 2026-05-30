@@ -5,11 +5,18 @@ const path = require('path');
 
 const PORT = process.env.PORT || 3000;
 
-function fetchAPI(hostname, apiPath) {
+function fetchAPI(urlString, redirectCount) {
+  if (!redirectCount) redirectCount = 0;
+  if (redirectCount > 5) return Promise.resolve(null);
+
   return new Promise(function(resolve, reject) {
+    var isHttps = urlString.startsWith('https');
+    var lib = isHttps ? https : http;
+    var urlObj = new URL(urlString);
+
     var options = {
-      hostname: hostname,
-      path: apiPath,
+      hostname: urlObj.hostname,
+      path: urlObj.pathname + urlObj.search,
       method: 'GET',
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
@@ -21,16 +28,32 @@ function fetchAPI(hostname, apiPath) {
       },
       timeout: 10000
     };
-    var req = https.request(options, function(res) {
+
+    var req = lib.request(options, function(res) {
+      // Segui redirect 301/302
+      if ((res.statusCode === 301 || res.statusCode === 302) && res.headers.location) {
+        var location = res.headers.location;
+        if (!location.startsWith('http')) {
+          location = 'https://www.viaggiatreno.it' + location;
+        }
+        console.log('Redirect verso:', location);
+        resolve(fetchAPI(location, redirectCount + 1));
+        return;
+      }
+
       var body = '';
       res.on('data', function(chunk) { body += chunk; });
-     res.on('end', function() {
-        console.log('VT status:', res.statusCode, 'body length:', body.length, 'preview:', body.substring(0, 100));
+      res.on('end', function() {
+        console.log('VT status:', res.statusCode, 'body length:', body.length, 'preview:', body.substring(0, 150));
         try { resolve(JSON.parse(body)); }
         catch(e) { resolve(null); }
       });
     });
-    req.on('error', function(e) { resolve(null); });
+
+    req.on('error', function(e) {
+      console.log('Errore richiesta:', e.message);
+      resolve(null);
+    });
     req.on('timeout', function() { req.destroy(); resolve(null); });
     req.end();
   });
@@ -108,14 +131,16 @@ var server = http.createServer(function(req, res) {
   if (pathname === '/api/arrivi' || pathname === '/api/partenze') {
     var type = (pathname === '/api/arrivi') ? 'arr' : 'dep';
     var ts = Date.now();
-    var vtPath = (type === 'arr')
-      ? '/infomobilita/resteasy/viaggiatreno/arrivi/S01756/' + ts
-      : '/infomobilita/resteasy/viaggiatreno/partenze/S01756/' + ts;
+    var vtUrl = (type === 'arr')
+      ? 'https://www.viaggiatreno.it/infomobilita/resteasy/viaggiatreno/arrivi/S01756/' + ts
+      : 'https://www.viaggiatreno.it/infomobilita/resteasy/viaggiatreno/partenze/S01756/' + ts;
 
-    fetchAPI('www.viaggiatreno.it', vtPath).then(function(data) {
+    fetchAPI(vtUrl, 0).then(function(data) {
       if (Array.isArray(data) && data.length > 0) {
+        console.log('Dati reali ricevuti:', data.length, 'treni');
         sendJSON(res, 200, data);
       } else {
+        console.log('Uso fallback');
         sendJSON(res, 200, generateFallbackData(type));
       }
     });
