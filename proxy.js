@@ -60,6 +60,42 @@ function serveFile(res, filePath, contentType) {
 
 // Genera orari di esempio realistici basati sull'orario S4
 function generateFallbackData(type) {
+  var now = new Date();
+  var trains = [];
+  var baseMin = now.getMinutes() - (now.getMinutes() % 30);
+  var baseHour = now.getHours();
+
+  var lines = [
+    { cat: 'S1',  arrDa: 'Saronno',         depA: 'Milano Porta Venezia' },
+    { cat: 'S3',  arrDa: 'Saronno',         depA: 'Milano Cadorna' },
+    { cat: 'S13', arrDa: 'Pavia',           depA: 'Milano Bovisa' },
+    { cat: 'S1',  arrDa: 'Milano P.Venezia',depA: 'Saronno' },
+    { cat: 'S3',  arrDa: 'Milano Cadorna',  depA: 'Saronno' },
+    { cat: 'S13', arrDa: 'Milano Bovisa',   depA: 'Pavia' },
+    { cat: 'S1',  arrDa: 'Saronno',         depA: 'Milano Porta Venezia' },
+    { cat: 'S3',  arrDa: 'Saronno',         depA: 'Milano Cadorna' },
+  ];
+
+  for (var i = 0; i < lines.length; i++) {
+    var m = baseMin + i * 10;
+    var h = baseHour + Math.floor(m / 60);
+    m = m % 60; h = h % 24;
+    var ritardo = i === 2 ? 3 : i === 5 ? 6 : 0;
+    trains.push({
+      orarioArrivo: new Date(now.getFullYear(), now.getMonth(), now.getDate(), h, m).getTime(),
+      orarioPartenza: new Date(now.getFullYear(), now.getMonth(), now.getDate(), h, m).getTime(),
+      origine: lines[i].arrDa,
+      destinazione: lines[i].depA,
+      numeroTreno: 20000 + i * 100,
+      categoriaDescrizione: lines[i].cat,
+      ritardo: ritardo,
+      binarioProgrammatoArrivoDescrizione: i % 2 === 0 ? '1' : '2',
+      binarioProgrammatoPartenzaDescrizione: i % 2 === 0 ? '1' : '2',
+      provvedimento: 0,
+    });
+  }
+  return trains;
+}
   const now = new Date();
   const pad = n => String(n).padStart(2, '0');
   const trains = [];
