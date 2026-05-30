@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tabellone — Bollate Centro</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #080808;
+      --surface:  #111111;
+      --surface2: #181818;
+      --border:   #252525;
+      --yellow:   #f5c842;
+      --yellow-d: #7a6520;
+      --green:    #2ecc71;
+      --red:      #e74c3c;
+      --gray:     #666;
+    }
+
+    html, body {
+      background: var(--bg);
+      color: var(--yellow);
+      font-family: 'Courier New', Courier, monospace;
+      height: 100%;
+      overflow: hidden;
+    }
+
+    /* ── Layout generale ──────────────────────────────── */
+    #app {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      padding: 16px;
+      gap: 10px;
+    }
+
+    /* ── Header ───────────────────────────────────────── */
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 20px;
+      flex-shrink: 0;
+    }
+    .station-name { font-size: clamp(20px, 3vw, 32px); font-weight: bold; letter-spacing: 3px; text-transform: uppercase; }
+    .station-sub  { font-size: clamp(10px, 1.2vw, 14px); color: var(--yellow-d); letter-spacing: 1px; margin-top: 3px; }
+    .clock-time   { font-size: clamp(28px, 4vw, 48px); font-weight: bold; letter-spacing: 4px; text-align: right; }
+    .clock-date   { font-size: clamp(10px, 1.1vw, 13px); color: var(--yellow-d); text-align: right; margin-top: 3px; }
+
+    /* ── Tabs ─────────────────────────────────────────── */
+    .tabs {
+      display: flex;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+    .tab {
+      flex: 1;
+      padding: 10px;
+      text-align: center;
+      font-size: clamp(12px, 1.5vw, 16px);
+      letter-spacing: 2px;
+      cursor: pointer;
+      color: var(--yellow-d);
+      border-bottom: 3px solid transparent;
+      transition: all 0.2s;
+      text-transform: uppercase;
+      user-select: none;
+    }
+    .tab.active { color: var(--yellow); border-bottom: 3px solid var(--yellow); background: var(--surface2); }
+    .tab:hover:not(.active) { color: #cca030; }
+
+    /* ── Intestazione colonne ─────────────────────────── */
+    .col-headers {
+      display: grid;
+      grid-template-columns: 90px 1fr 110px 90px 130px;
+      padding: 6px 16px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      flex-shrink: 0;
+    }
+    .col-h {
+      font-size: clamp(9px, 1vw, 12px);
+      letter-spacing: 1.5px;
+      color: var(--yellow-d);
+      text-transform: uppercase;
+    }
+    .col-h.right { text-align: right; }
+
+    /* ── Lista treni ──────────────────────────────────── */
+    #train-list {
+      flex: 1;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .train-row {
+      display: grid;
+      grid-template-columns: 90px 1fr 110px 90px 130px;
+      align-items: center;
+      padding: 10px 16px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      transition: background 0.2s;
+      flex-shrink: 0;
+    }
+    .train-row:hover { background: var(--surface2); }
+
+    .cell { display: flex; align-items: center; }
+    .cell.right { justify-content: flex-end; }
+    .cell.col-route { flex-direction: column; align-items: flex-start; gap: 2px; }
+
+    .time { font-size: clamp(16px, 2vw, 22px); font-weight: bold; letter-spacing: 2px; }
+    .route-main { font-size: clamp(13px, 1.6vw, 18px); color: var(--yellow); }
+    .route-via  { font-size: clamp(10px, 1.1vw, 13px); color: var(--yellow-d); }
+    .train-cat  { font-size: clamp(10px, 1.1vw, 13px); color: var(--yellow-d); }
+    .train-num  { font-size: clamp(11px, 1.2vw, 14px); color: var(--gray); margin-left: 4px; }
+
+    .platform {
+      border: 1px solid var(--yellow-d);
+      border-radius: 4px;
+      padding: 3px 10px;
+      font-size: clamp(12px, 1.4vw, 16px);
+      font-weight: bold;
+      min-width: 36px;
+      text-align: center;
+    }
+
+    .status-ok     { color: var(--green); font-size: clamp(11px, 1.3vw, 15px); font-weight: bold; }
+    .status-late   { color: var(--red);   font-size: clamp(11px, 1.3vw, 15px); font-weight: bold; }
+    .status-cancel { color: var(--red);   font-size: clamp(10px, 1.1vw, 13px); font-weight: bold; }
+    .status-info   { color: var(--gray);  font-size: clamp(10px, 1.1vw, 13px); }
+
+    .msg-center {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--yellow-d);
+      font-size: 16px;
+      letter-spacing: 2px;
+    }
+
+    /* ── Ticker ───────────────────────────────────────── */
+    .ticker {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 6px 12px;
+      overflow: hidden;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .ticker-inner {
+      display: inline-block;
+      font-size: clamp(10px, 1.1vw, 13px);
+      color: var(--yellow-d);
+      letter-spacing: 1px;
+      animation: scroll-ticker 40s linear infinite;
+    }
+    @keyframes scroll-ticker { from { transform: translateX(100vw); } to { transform: translateX(-100%); } }
+
+    /* ── Footer ───────────────────────────────────────── */
+    .footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 7px 16px;
+      flex-shrink: 0;
+    }
+    .live-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--green);
+      display: inline-block; margin-right: 6px;
+      animation: pulse 2s ease-in-out infinite;
+    }
+    .live-dot.err { background: var(--red); animation: none; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+    .update-txt { font-size: clamp(10px, 1.1vw, 13px); color: var(--yellow-d); letter-spacing: 1px; }
+    .refresh-btn {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--yellow-d);
+      font-family: 'Courier New', monospace;
+      font-size: clamp(10px, 1vw, 13px);
+      letter-spacing: 1px;
+      padding: 5px 14px;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .refresh-btn:hover { color: var(--yellow); border-color: var(--yellow-d); }
+
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+    .blink { animation: blink 1s step-end infinite; }
+  </style>
+</head>
+<body>
+<div id="app">
+
+  <!-- Header -->
+  <div class="header">
+    <div>
+      <div class="station-name">Bollate Centro</div>
+      <div class="station-sub">Linea S4 · Milano Cadorna — Camnago Lentate · Trenord</div>
+    </div>
+    <div>
+      <div class="clock-time" id="clock">--:--:--</div>
+      <div class="clock-date" id="date-display">--</div>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <div class="tab active" id="tab-arr" onclick="switchTab('arr')">⬇&nbsp; Arrivi</div>
+    <div class="tab"        id="tab-dep" onclick="switchTab('dep')">⬆&nbsp; Partenze</div>
+  </div>
+
+  <!-- Intestazione colonne -->
+  <div class="col-headers">
+    <div class="col-h">Orario</div>
+    <div class="col-h">Provenienza / Destinazione</div>
+    <div class="col-h right">Treno</div>
+    <div class="col-h right">Binario</div>
+    <div class="col-h right">Stato</div>
+  </div>
+
+  <!-- Lista -->
+  <div id="train-list">
+    <div class="msg-center"><span class="blink">●</span>&nbsp; CARICAMENTO DATI...</div>
+  </div>
+
+  <!-- Ticker -->
+  <div class="ticker">
+    <span class="ticker-inner" id="ticker">
+      Tabellone in tempo reale · Stazione di Bollate Centro ·
+      Linea S4 Milano Cadorna — Camnago Lentate ·
+      Aggiornamento automatico ogni 60 secondi ·
+      Dati: ViaggiaTreno / Trenitalia
+    </span>
+  </div>
+
+  <!-- Footer -->
+  <div class="footer">
+    <div class="update-txt">
+      <span class="live-dot" id="live-dot"></span>
+      <span id="last-update">In aggiornamento...</span>
+    </div>
+    <button class="refresh-btn" onclick="fetchTrains()">↻&nbsp; AGGIORNA</button>
+  </div>
+
+</div>
+
+<script>
+  // ── Configurazione ────────────────────────────────────────────────────────
+  // Se apri index.html direttamente (senza proxy), le API chiamate saranno
+  // quelle del proxy locale. Cambia BASE_URL se il server gira su un'altra
+  // porta o indirizzo IP.
+  const BASE_URL = '';   // vuoto = stesso host del file (localhost:3000)
+  const REFRESH_MS = 60000;
+
+  let currentTab = 'arr';
+  let refreshTimer = null;
+
+  // ── Orologio ──────────────────────────────────────────────────────────────
+  const DAYS   = ['Domenica','Lunedì','Martedì','Mercoledì','Giovedì','Venerdì','Sabato'];
+  const MONTHS = ['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno',
+                  'Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre'];
+
+  function updateClock() {
+    const now = new Date();
+    const pad = n => String(n).padStart(2, '0');
+    document.getElementById('clock').textContent =
+      pad(now.getHours()) + ':' + pad(now.getMinutes()) + ':' + pad(now.getSeconds());
+    document.getElementById('date-display').textContent =
+      DAYS[now.getDay()] + ' ' + now.getDate() + ' ' + MONTHS[now.getMonth()] + ' ' + now.getFullYear();
+  }
+  setInterval(updateClock, 1000);
+  updateClock();
+
+  // ── Tab switch ────────────────────────────────────────────────────────────
+  function switchTab(t) {
+    currentTab = t;
+    document.getElementById('tab-arr').classList.toggle('active', t === 'arr');
+    document.getElementById('tab-dep').classList.toggle('active', t === 'dep');
+    fetchTrains();
+  }
+
+  // ── Fetch dati dal proxy ──────────────────────────────────────────────────
+  async function fetchTrains() {
+    clearTimeout(refreshTimer);
+    const list = document.getElementById('train-list');
+    list.innerHTML = '<div class="msg-center"><span class="blink">●</span>&nbsp; CARICAMENTO DATI...</div>';
+
+    const endpoint = currentTab === 'arr' ? '/api/arrivi' : '/api/partenze';
+    try {
+      const res = await fetch(BASE_URL + endpoint);
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      renderTrains(data);
+      setStatus(true);
+    } catch (e) {
+      list.innerHTML = `<div class="msg-center" style="flex-direction:column;gap:12px;">
+        <div style="color:var(--red);font-size:15px;letter-spacing:2px;">⚠ CONNESSIONE AL PROXY NON RIUSCITA</div>
+        <div style="color:var(--gray);font-size:12px;">Assicurati che <code>node proxy.js</code> sia in esecuzione</div>
+        <div style="color:var(--gray);font-size:11px;">${e.message}</div>
+      </div>`;
+      setStatus(false);
+    }
+    refreshTimer = setTimeout(fetchTrains, REFRESH_MS);
+  }
+
+  // ── Stato live dot ────────────────────────────────────────────────────────
+  function setStatus(ok) {
+    const dot = document.getElementById('live-dot');
+    const txt = document.getElementById('last-update');
+    dot.className = 'live-dot' + (ok ? '' : ' err');
+    const now = new Date();
+    const pad = n => String(n).padStart(2, '0');
+    txt.textContent = ok
+      ? 'Aggiornato alle ' + pad(now.getHours()) + ':' + pad(now.getMinutes())
+      : 'Errore — riprovando tra 60 secondi';
+  }
+
+  // ── Render righe ──────────────────────────────────────────────────────────
+  function renderTrains(data) {
+    const list = document.getElementById('train-list');
+    if (!Array.isArray(data) || data.length === 0) {
+      list.innerHTML = '<div class="msg-center">Nessun treno disponibile</div>';
+      return;
+    }
+
+    // Calcola quante righe entrano nello spazio disponibile
+    const availH = list.clientHeight || 400;
+    const rowH = 56;
+    const maxRows = Math.max(4, Math.floor(availH / rowH));
+
+    const html = data.slice(0, maxRows).map(t => {
+      const ts = t.orarioArrivo || t.orarioPartenza;
+      const ora = ts ? new Date(ts) : null;
+      const pad = n => String(n).padStart(2, '0');
+      const oraStr = ora ? pad(ora.getHours()) + ':' + pad(ora.getMinutes()) : '--:--';
+
+      const ritardo = t.ritardo ?? 0;
+      let statusHtml;
+      if (t.provvedimento === 1 || t.nonPartito) {
+        statusHtml = '<span class="status-cancel">SOPPRESSO</span>';
+      } else if (ritardo > 0) {
+        statusHtml = `<span class="status-late">+${ritardo} min</span>`;
+      } else if (ritardo < 0) {
+        statusHtml = `<span class="status-ok">ANTICIPO ${Math.abs(ritardo)}'</span>`;
+      } else {
+        statusHtml = '<span class="status-ok">PUNTUALE</span>';
+      }
+
+      const binario = t.binarioProgrammatoArrivoDescrizione
+                   || t.binarioProgrammatoPartenzaDescrizione
+                   || t.binarioEffettivoArrivoDescrizione
+                   || '—';
+      const categoria = (t.categoriaDescrizione || 'REG').trim();
+      const numTreno  = t.numeroTreno || '';
+      const luogo     = currentTab === 'arr'
+        ? (t.origine || '—')
+        : (t.destinazione || '—');
+      const via = t.compOrarioArrivo || '';
+
+      return `<div class="train-row">
+        <div class="cell"><span class="time">${oraStr}</span></div>
+        <div class="cell col-route">
+          <span class="route-main">${luogo}</span>
+          ${via ? `<span class="route-via">via ${via}</span>` : ''}
+        </div>
+        <div class="cell right">
+          <span class="train-cat">${categoria}</span>
+          <span class="train-num">${numTreno}</span>
+        </div>
+        <div class="cell right"><span class="platform">${binario}</span></div>
+        <div class="cell right">${statusHtml}</div>
+      </div>`;
+    }).join('');
+
+    list.innerHTML = html;
+  }
+
+  // ── Avvio ─────────────────────────────────────────────────────────────────
+  fetchTrains();
+</script>
+</body>
+</html>
