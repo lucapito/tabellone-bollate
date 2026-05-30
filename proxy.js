@@ -24,7 +24,8 @@ function fetchAPI(hostname, apiPath) {
     var req = https.request(options, function(res) {
       var body = '';
       res.on('data', function(chunk) { body += chunk; });
-      res.on('end', function() {
+     res.on('end', function() {
+        console.log('VT status:', res.statusCode, 'body length:', body.length, 'preview:', body.substring(0, 100));
         try { resolve(JSON.parse(body)); }
         catch(e) { resolve(null); }
       });
