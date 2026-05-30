@@ -19,6 +19,8 @@ function fetchAPI(hostname, apiPath) {
         'Origin': 'https://www.viaggiatreno.it',
         'X-Requested-With': 'XMLHttpRequest'
       },
+      timeout: 10000
+    };
     var req = https.request(options, function(res) {
       var body = '';
       res.on('data', function(chunk) { body += chunk; });
