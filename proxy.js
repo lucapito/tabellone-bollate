@@ -12,12 +12,13 @@ function fetchAPI(hostname, apiPath) {
       path: apiPath,
       method: 'GET',
       headers: {
-        'User-Agent': 'Mozilla/5.0 (compatible; TabelloneBollate/1.0)',
-        'Accept': 'application/json',
-        'Referer': 'https://www.viaggiatreno.it/'
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        'Accept': 'application/json, text/plain, */*',
+        'Accept-Language': 'it-IT,it;q=0.9',
+        'Referer': 'https://www.viaggiatreno.it/infomobilita/index.jsp',
+        'Origin': 'https://www.viaggiatreno.it',
+        'X-Requested-With': 'XMLHttpRequest'
       },
-      timeout: 10000
-    };
     var req = https.request(options, function(res) {
       var body = '';
       res.on('data', function(chunk) { body += chunk; });
