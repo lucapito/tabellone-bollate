@@ -308,12 +308,25 @@
 
     const endpoint = currentTab === 'arr' ? '/api/arrivi' : '/api/partenze';
     try {
-      const res = await fetch(BASE_URL + endpoint);
-      if (!res.ok) throw new Error('HTTP ' + res.status);
-      const data = await res.json();
-      if (data.error) throw new Error(data.error);
-      renderTrains(data);
-      setStatus(true);
+     const data = await new Promise((resolve, reject) => {
+  var xhr = new XMLHttpRequest();
+  xhr.open('GET', BASE_URL + endpoint, true);
+  xhr.timeout = 10000;
+  xhr.onload = function() {
+    if (xhr.status >= 200 && xhr.status < 300) {
+      try { resolve(JSON.parse(xhr.responseText)); }
+      catch(e) { reject(new Error('JSON non valido')); }
+    } else {
+      reject(new Error('HTTP ' + xhr.status));
+    }
+  };
+  xhr.onerror = function() { reject(new Error('Errore di rete')); };
+  xhr.ontimeout = function() { reject(new Error('Timeout')); };
+  xhr.send();
+});
+if (data.error) throw new Error(data.error);
+renderTrains(data);
+setStatus(true);
     } catch (e) {
       list.innerHTML = `<div class="msg-center" style="flex-direction:column;gap:12px;">
         <div style="color:var(--red);font-size:15px;letter-spacing:2px;">⚠ CONNESSIONE AL PROXY NON RIUSCITA</div>
